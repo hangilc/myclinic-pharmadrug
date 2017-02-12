@@ -1,0 +1,37 @@
+{
+  "name": "myclinic-pharmadrug",
+  "version": "1.0.0",
+  "description": "Pharma drug service for myclinic",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run compile && npm run bundle",
+    "compile": "tsc -p browser-src",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "bundle": "npm run bundle-main",
+    "bundle-main": "webpack browser-src/main.js static/bundle.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/hangilc/myclinic-pharmadrug.git"
+  },
+  "author": "Hangil Chang",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hangilc/myclinic-pharmadrug/issues"
+  },
+  "homepage": "https://github.com/hangilc/myclinic-pharmadrug#readme",
+  "devDependencies": {
+    "@types/express": "^4.0.35",
+    "@types/jquery": "^2.0.40",
+    "@types/node": "^7.0.5",
+    "ejs": "^2.5.5",
+    "jquery": "^3.1.1",
+    "kanjidate": "^1.1.2",
+    "moment": "^2.17.1",
+    "myclinic-consts": "^0.1.1",
+    "myclinic-web": "^1.0.14",
+    "raw-loader": "^0.5.1",
+    "typescript": "^2.1.6",
+    "webpack": "^1.14.0"
+  }
+}
