@@ -134,10 +134,12 @@ var NewForm;
             this.iyakuhincode = null;
             this.layout = layout;
             this.callbacks = {
+                onEnter: _ => { },
                 onCancel: () => { }
             };
             this.hideSearch();
             this.bindSearchButton();
+            this.bindEnterButton();
             this.bindCancelButton();
             this.layout.search.callbacks.onSelect = (master) => {
                 this.iyakuhincode = master.iyakuhincode;
@@ -170,6 +172,40 @@ var NewForm;
                     this.hideSearch();
                 }
             });
+        }
+        bindEnterButton() {
+            let button = this.layout.enter;
+            button.addEventListener("click", (event) => __awaiter(this, void 0, void 0, function* () {
+                let iyakuhincode = this.iyakuhincode;
+                if (iyakuhincode === null) {
+                    alert("薬剤名が指定されていません。");
+                    return;
+                }
+                else {
+                    if (!(iyakuhincode > 0)) {
+                        alert("薬剤名が適切でありません。");
+                        return;
+                    }
+                    let desc = this.layout.description.value;
+                    let side = this.layout.sideeffect.value;
+                    let drug = {
+                        iyakuhincode,
+                        description: desc,
+                        sideEffect: side
+                    };
+                    yield service.enterPharmaDrug(drug);
+                    {
+                        let newDrug = yield service.getPharmaDrug(iyakuhincode);
+                        let master = yield service.getMostRecentIyakuhinMaster(iyakuhincode);
+                        let msg = "薬剤情報が入力されました。\n" +
+                            "薬剤名：" + master.name + "\n" +
+                            "説明：" + newDrug.description + "\n" +
+                            "副作用：" + newDrug.sideEffect;
+                        alert(msg);
+                        this.callbacks.onEnter(iyakuhincode);
+                    }
+                }
+            }));
         }
         bindCancelButton() {
             let button = this.layout.cancel;
@@ -238,6 +274,7 @@ var EditorWorkarea;
         constructor(layout) {
             this.layout = layout;
             this.callbacks = {
+                onEnter: (_) => { },
                 onCancel: () => { }
             };
         }
@@ -256,6 +293,10 @@ var EditorWorkarea;
             let wrapper = this.layout.wrapper;
             wrapper.innerHTML = "";
             let form = NewForm.populate(wrapper);
+            form.callbacks.onEnter = (iyakuhincode) => {
+                wrapper.innerHTML = "";
+                this.callbacks.onEnter(iyakuhincode);
+            };
             form.callbacks.onCancel = () => {
                 wrapper.innerHTML = "";
                 this.callbacks.onCancel();
@@ -291,6 +332,10 @@ var LeftPane;
             this.callbacks = {};
             this.layout.menu.callbacks.onChoice = (choice) => {
                 this.layout.workarea.switchTo(choice);
+            };
+            this.layout.workarea.callbacks.onEnter = (iyakuhincode) => {
+                this.layout.menu.switchTo(null, true);
+                this.layout.menu.switchTo("new", true);
             };
             this.layout.workarea.callbacks.onCancel = () => {
                 this.layout.menu.switchTo(null, false);

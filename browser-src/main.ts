@@ -167,6 +167,7 @@ namespace NewForm {
 	}
 
 	export interface Callbacks {
+		onEnter: (iyakuhincode: number) => void;
 		onCancel: () => void;
 	}
 
@@ -178,10 +179,12 @@ namespace NewForm {
 		constructor(layout: Layout){
 			this.layout = layout;
 			this.callbacks = {
+				onEnter: _ => {},
 				onCancel: () => {}
 			}
 			this.hideSearch();
 			this.bindSearchButton();
+			this.bindEnterButton();
 			this.bindCancelButton();
 			this.layout.search.callbacks.onSelect = (master: IyakuhinMaster) => {
 				this.iyakuhincode = master.iyakuhincode;
@@ -219,12 +222,47 @@ namespace NewForm {
 			})
 		}
 
+		private bindEnterButton(): void {
+			let button = this.layout.enter;
+			button.addEventListener("click", async event => {
+				let iyakuhincode = this.iyakuhincode;
+				if( iyakuhincode === null ){
+					alert("薬剤名が指定されていません。");
+					return;
+				} else {
+					if( !(iyakuhincode > 0) ){
+						alert("薬剤名が適切でありません。");
+						return;
+					}
+					let desc = this.layout.description.value;
+					let side = this.layout.sideeffect.value;
+					let drug = {
+						iyakuhincode,
+						description: desc,
+						sideEffect: side
+					};
+					await service.enterPharmaDrug(drug);
+					{
+						let newDrug = await service.getPharmaDrug(iyakuhincode);
+						let master = await service.getMostRecentIyakuhinMaster(iyakuhincode);
+						let msg = "薬剤情報が入力されました。\n" +
+							"薬剤名：" + master.name + "\n" +
+							"説明：" + newDrug.description + "\n" +
+							"副作用：" + newDrug.sideEffect ;
+						alert(msg);
+						this.callbacks.onEnter(iyakuhincode);
+					}
+				}
+			});
+		}
+
 		private bindCancelButton(): void {
 			let button = this.layout.cancel;
 			button.addEventListener("click", event => {
 				this.callbacks.onCancel();
 			})
 		}
+
 	}
 
 	export function populate(parent: HTMLElement): Controller {
@@ -288,6 +326,7 @@ namespace EditorWorkarea {
 	}
 
 	export interface Callbacks {
+		onEnter: (iyakuhincode: number) => void;
 		onCancel: () => void;
 	}
 
@@ -298,6 +337,7 @@ namespace EditorWorkarea {
 		constructor(layout: Layout){
 			this.layout = layout;
 			this.callbacks = {
+				onEnter: (_) => {},
 				onCancel: () => {}
 			};
 		}
@@ -314,10 +354,14 @@ namespace EditorWorkarea {
 			let wrapper = this.layout.wrapper;
 			wrapper.innerHTML = "";
 			let form: NewForm.Controller = NewForm.populate(wrapper);
+			form.callbacks.onEnter = (iyakuhincode: number) => {
+				wrapper.innerHTML = "";
+				this.callbacks.onEnter(iyakuhincode);
+			};
 			form.callbacks.onCancel = () => {
 				wrapper.innerHTML = "";
 				this.callbacks.onCancel();
-			}
+			};
 			form.appendTo(wrapper);
 		}
 
@@ -355,6 +399,10 @@ namespace LeftPane {
 			this.callbacks = {};
 			this.layout.menu.callbacks.onChoice = (choice: EditorMenu.MenuChoice) => {
 				this.layout.workarea.switchTo(choice);
+			};
+			this.layout.workarea.callbacks.onEnter = (iyakuhincode: number) => {
+				this.layout.menu.switchTo(null, true);
+				this.layout.menu.switchTo("new", true);
 			};
 			this.layout.workarea.callbacks.onCancel = () => {
 				this.layout.menu.switchTo(null, false);

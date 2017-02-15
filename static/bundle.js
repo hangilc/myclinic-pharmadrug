@@ -180,10 +180,12 @@
 	            this.iyakuhincode = null;
 	            this.layout = layout;
 	            this.callbacks = {
+	                onEnter: _ => { },
 	                onCancel: () => { }
 	            };
 	            this.hideSearch();
 	            this.bindSearchButton();
+	            this.bindEnterButton();
 	            this.bindCancelButton();
 	            this.layout.search.callbacks.onSelect = (master) => {
 	                this.iyakuhincode = master.iyakuhincode;
@@ -216,6 +218,40 @@
 	                    this.hideSearch();
 	                }
 	            });
+	        }
+	        bindEnterButton() {
+	            let button = this.layout.enter;
+	            button.addEventListener("click", (event) => __awaiter(this, void 0, void 0, function* () {
+	                let iyakuhincode = this.iyakuhincode;
+	                if (iyakuhincode === null) {
+	                    alert("薬剤名が指定されていません。");
+	                    return;
+	                }
+	                else {
+	                    if (!(iyakuhincode > 0)) {
+	                        alert("薬剤名が適切でありません。");
+	                        return;
+	                    }
+	                    let desc = this.layout.description.value;
+	                    let side = this.layout.sideeffect.value;
+	                    let drug = {
+	                        iyakuhincode,
+	                        description: desc,
+	                        sideEffect: side
+	                    };
+	                    yield service.enterPharmaDrug(drug);
+	                    {
+	                        let newDrug = yield service.getPharmaDrug(iyakuhincode);
+	                        let master = yield service.getMostRecentIyakuhinMaster(iyakuhincode);
+	                        let msg = "薬剤情報が入力されました。\n" +
+	                            "薬剤名：" + master.name + "\n" +
+	                            "説明：" + newDrug.description + "\n" +
+	                            "副作用：" + newDrug.sideEffect;
+	                        alert(msg);
+	                        this.callbacks.onEnter(iyakuhincode);
+	                    }
+	                }
+	            }));
 	        }
 	        bindCancelButton() {
 	            let button = this.layout.cancel;
@@ -284,6 +320,7 @@
 	        constructor(layout) {
 	            this.layout = layout;
 	            this.callbacks = {
+	                onEnter: (_) => { },
 	                onCancel: () => { }
 	            };
 	        }
@@ -302,6 +339,10 @@
 	            let wrapper = this.layout.wrapper;
 	            wrapper.innerHTML = "";
 	            let form = NewForm.populate(wrapper);
+	            form.callbacks.onEnter = (iyakuhincode) => {
+	                wrapper.innerHTML = "";
+	                this.callbacks.onEnter(iyakuhincode);
+	            };
 	            form.callbacks.onCancel = () => {
 	                wrapper.innerHTML = "";
 	                this.callbacks.onCancel();
@@ -337,6 +378,10 @@
 	            this.callbacks = {};
 	            this.layout.menu.callbacks.onChoice = (choice) => {
 	                this.layout.workarea.switchTo(choice);
+	            };
+	            this.layout.workarea.callbacks.onEnter = (iyakuhincode) => {
+	                this.layout.menu.switchTo(null, true);
+	                this.layout.menu.switchTo("new", true);
 	            };
 	            this.layout.workarea.callbacks.onCancel = () => {
 	                this.layout.menu.switchTo(null, false);
@@ -518,6 +563,7 @@
 	};
 	const request_1 = __webpack_require__(3);
 	const iyakuhin_master_1 = __webpack_require__(5);
+	const pharma_drug_1 = __webpack_require__(6);
 	let numberArrayConverter = request_1.arrayConverter(request_1.convertToNumber);
 	let iyakuhinMasterArrayConverter = request_1.arrayConverter(iyakuhin_master_1.jsonToIyakuhinMaster);
 	function searchIyakuhincodes(text) {
@@ -546,6 +592,22 @@
 	    });
 	}
 	exports.getMostRecentIyakuhinMaster = getMostRecentIyakuhinMaster;
+	function enterPharmaDrug(pharmaDrug) {
+	    return __awaiter(this, void 0, void 0, function* () {
+	        return request_1.request("/service?_q=enter_pharma_drug", {
+	            iyakuhincode: pharmaDrug.iyakuhincode,
+	            description: pharmaDrug.description,
+	            sideeffect: pharmaDrug.sideEffect
+	        }, "POST", request_1.convertToNumber);
+	    });
+	}
+	exports.enterPharmaDrug = enterPharmaDrug;
+	function getPharmaDrug(iyakuhincode) {
+	    return __awaiter(this, void 0, void 0, function* () {
+	        return request_1.request("/service?_q=get_pharma_drug", { iyakuhincode: iyakuhincode }, "GET", pharma_drug_1.jsonToPharmaDrug);
+	    });
+	}
+	exports.getPharmaDrug = getPharmaDrug;
 
 
 /***/ },
@@ -10856,6 +10918,24 @@
 	    return m;
 	}
 	exports.jsonToIyakuhinMaster = jsonToIyakuhinMaster;
+
+
+/***/ },
+/* 6 */
+/***/ function(module, exports) {
+
+	"use strict";
+	class PharmaDrug {
+	}
+	exports.PharmaDrug = PharmaDrug;
+	function jsonToPharmaDrug(src) {
+	    let result = new PharmaDrug();
+	    result.iyakuhincode = src.iyakuhincode;
+	    result.description = src.description;
+	    result.sideEffect = src.sideeffect;
+	    return result;
+	}
+	exports.jsonToPharmaDrug = jsonToPharmaDrug;
 
 
 /***/ }

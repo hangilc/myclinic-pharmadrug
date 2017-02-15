@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 const request_1 = require("./request");
 const iyakuhin_master_1 = require("./model/iyakuhin-master");
+const pharma_drug_1 = require("./model/pharma-drug");
 let numberArrayConverter = request_1.arrayConverter(request_1.convertToNumber);
 let iyakuhinMasterArrayConverter = request_1.arrayConverter(iyakuhin_master_1.jsonToIyakuhinMaster);
 function searchIyakuhincodes(text) {
@@ -37,3 +38,19 @@ function getMostRecentIyakuhinMaster(iyakuhincode) {
     });
 }
 exports.getMostRecentIyakuhinMaster = getMostRecentIyakuhinMaster;
+function enterPharmaDrug(pharmaDrug) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return request_1.request("/service?_q=enter_pharma_drug", {
+            iyakuhincode: pharmaDrug.iyakuhincode,
+            description: pharmaDrug.description,
+            sideeffect: pharmaDrug.sideEffect
+        }, "POST", request_1.convertToNumber);
+    });
+}
+exports.enterPharmaDrug = enterPharmaDrug;
+function getPharmaDrug(iyakuhincode) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return request_1.request("/service?_q=get_pharma_drug", { iyakuhincode: iyakuhincode }, "GET", pharma_drug_1.jsonToPharmaDrug);
+    });
+}
+exports.getPharmaDrug = getPharmaDrug;
