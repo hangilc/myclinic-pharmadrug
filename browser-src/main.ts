@@ -57,6 +57,185 @@ namespace EditorMenu {
 	}
 }
 
+namespace SearchPharmaDrug {
+	export interface Layout {
+		input: HTMLInputElement;
+		execButton: HTMLElement;
+		searchResult: HTMLSelectElement;
+		selectButton: HTMLElement;
+		cancelButton: HTMLElement;
+	}
+
+	export interface Callbacks {
+		onCancel: () => void;
+	}
+
+	export class Controller {
+		private layout: Layout;
+		callbacks: Callbacks;
+
+		constructor(layout: Layout){
+			this.layout = layout;
+			this.callbacks = {
+				onCancel: () => {}
+			};
+			this.bindExecButton();
+			this.bindCancelButton();
+		}
+
+		focus(): void {
+			this.layout.input.focus();
+		}
+
+		private bindExecButton(): void {
+			let button = this.layout.execButton;
+			button.addEventListener("click", event => {
+				let text = this.layout.input.value.trim();
+				console.log(text);
+			})
+		}
+
+		private bindCancelButton(): void {
+			this.layout.cancelButton.addEventListener("click", event => {
+				this.callbacks.onCancel();
+			})
+		}
+	}
+
+	export function populate(parent: HTMLElement): Controller {
+		let input = h.input({}, []);
+		let execButton = h.button({type: "submit"}, ["検索実行"]);
+		let searchResult = h.select({class:"pharmadrug-search-result"}, []);
+		let selectButton = h.button({}, ["選択"]);
+		let cancelButton = h.button({}, ["キャンセル"]);
+		let form = h.form({}, [
+			input, " ",
+			execButton,
+			h.div({}, [searchResult]),
+			h.div({}, [selectButton, " ", cancelButton])
+		]);
+		appendToElement(parent, [form]);
+		let layout = {
+			input,
+			execButton,
+			searchResult,
+			selectButton,
+			cancelButton
+		}
+		return new Controller(layout);
+	}
+}
+
+namespace NewForm {
+	export interface Layout {
+		form: HTMLElement;
+		name: HTMLElement;
+		description: HTMLTextAreaElement;
+		sideeffect: HTMLTextAreaElement;
+		enter: HTMLElement;
+		cancel: HTMLElement;
+		searchButton: HTMLElement;
+		searchWrapper: HTMLElement;
+		search: SearchPharmaDrug.Controller;
+	}
+
+	export interface Callbacks {
+
+	}
+
+	export class Controller {
+		private layout: Layout;
+
+		constructor(layout: Layout){
+			this.layout = layout;
+			this.hideSearch();
+			this.bindSearchButton();
+			this.layout.search.callbacks.onCancel = () => {
+				this.hideSearch();
+			}
+		}
+
+		appendTo(parent: HTMLElement): void {
+			parent.appendChild(this.layout.form);
+		}
+
+		private hideSearch(): void {
+			this.layout.searchWrapper.style.display = "none";
+		}
+
+		private showSearch(): void {
+			this.layout.searchWrapper.style.display = "";
+			this.layout.search.focus();
+		}
+
+		private bindSearchButton(): void {
+			let button = this.layout.searchButton;
+			button.addEventListener("click", event => {
+				let wrapper = this.layout.searchWrapper;
+				if( wrapper.style.display === "none" ){
+					this.showSearch();
+				} else {
+					this.hideSearch();
+				}
+			})
+		}
+	}
+
+	export function populate(parent: HTMLElement): Controller {
+		let name = h.div({}, []);
+		let searchButton = h.button({}, ["検索"]);
+		let searchWrapper = h.div({}, []);
+		let desc = h.textarea({class:"description"}, []);
+		let side = h.textarea({class:"sideeffect"}, []);
+		let enter = h.button({}, ["入力"]);
+		let cancel = h.button({}, ["キャンセル"]);
+		let form = h.form({}, [
+			h.table({class:"editor"}, [
+				h.colgroup({}, [
+					h.col({class:"label"}, [])
+				]),
+				h.colgroup({}, [
+					h.col({class:"input"}, [])
+				]),
+				h.tr({}, [
+					h.td({}, ["薬剤名"]),
+					h.td({}, [
+						h.div({}, [name, " ", searchButton]), 
+						searchWrapper
+					])
+				]),
+				h.tr({}, [
+					h.td({}, ["説明"]),
+					h.td({}, [desc])
+				]),
+				h.tr({}, [
+					h.td({}, ["副作用："]),
+					h.td({}, [side])
+				])
+			]),
+			h.div({}, [
+				enter, " ",
+				cancel
+			])
+		]);
+
+		let layout = {
+			form: form,
+			name: name,
+			description: desc,
+			sideeffect: side,
+			enter: enter,
+			cancel: cancel,
+			searchButton: searchButton,
+			searchWrapper: searchWrapper,
+			search: SearchPharmaDrug.populate(searchWrapper)
+		}
+		appendToElement(parent, [form]);
+		return new Controller(layout);
+	}
+
+}
+
 namespace EditorWorkarea {
 	export interface Layout {
 		wrapper: HTMLElement
@@ -86,7 +265,8 @@ namespace EditorWorkarea {
 		private switchToNew(){
 			let wrapper = this.layout.wrapper;
 			wrapper.innerHTML = "";
-			appendToElement(wrapper, ["NEW"]);
+			let form: NewForm.Controller = NewForm.populate(wrapper);
+			form.appendTo(wrapper);
 		}
 
 		private switchToEdit(){
@@ -106,7 +286,7 @@ namespace EditorWorkarea {
 
 namespace LeftPane {
 	export class Layout {
-		menu: EditorMenu.Controller,
+		menu: EditorMenu.Controller;
 		workarea: EditorWorkarea.Controller
 	}
 
