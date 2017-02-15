@@ -1,4 +1,6 @@
 import { h, appendToElement } from "./typed-dom";
+import * as service from "./service";
+import { IyakuhinMaster } from "./model/iyakuhin-master";
 
 namespace EditorMenu {
 	export type MenuChoice = "new" | "edit" | null;
@@ -25,20 +27,23 @@ namespace EditorMenu {
 				onSameChoice: (choice: MenuChoice) => {}
 			}
 			layout.newLink.addEventListener("click", event => {
-				this.handleClick("new");
+				this.switchTo("new", true);
 			});
 			layout.editLink.addEventListener("click", event => {
-				this.handleClick("edit");
+				this.switchTo("edit", true);
 			});
-			
 		}
 
-		private async handleClick(choice: MenuChoice): Promise<void>{
+		switchTo(choice: MenuChoice, triggerCallback: boolean): void {
 			if( this.currentChoice === choice ){
-				this.callbacks.onSameChoice(choice);
+				if( triggerCallback ){
+					this.callbacks.onSameChoice(choice);
+				}
 			} else {
 				this.currentChoice = choice;
-				this.callbacks.onChoice(choice);
+				if( triggerCallback ){
+					this.callbacks.onChoice(choice);
+				}
 			}
 		}
 	}
@@ -67,6 +72,7 @@ namespace SearchPharmaDrug {
 	}
 
 	export interface Callbacks {
+		onSelect: (master: IyakuhinMaster) => void;
 		onCancel: () => void;
 	}
 
@@ -77,9 +83,11 @@ namespace SearchPharmaDrug {
 		constructor(layout: Layout){
 			this.layout = layout;
 			this.callbacks = {
+				onSelect: _ => {},
 				onCancel: () => {}
 			};
 			this.bindExecButton();
+			this.bindSelectButton();
 			this.bindCancelButton();
 		}
 
@@ -89,9 +97,28 @@ namespace SearchPharmaDrug {
 
 		private bindExecButton(): void {
 			let button = this.layout.execButton;
-			button.addEventListener("click", event => {
+			button.addEventListener("click", async event => {
 				let text = this.layout.input.value.trim();
-				console.log(text);
+				let masters = await service.searchIyakuhinMaster(text);
+				let select = this.layout.searchResult;
+				select.innerHTML = "";
+				masters.forEach(m => {
+					let opt = h.option({value: m.iyakuhincode}, [m.name]);
+					select.appendChild(opt);
+				})
+			})
+		}
+
+		private bindSelectButton(): void {
+			let button = this.layout.selectButton;
+			button.addEventListener("click", async event => {
+				let select = this.layout.searchResult;
+				let opt = select.querySelector("option:checked");
+				if( opt !== null ){
+					let value = +(<HTMLOptionElement>opt).value;
+					let master = await service.getMostRecentIyakuhinMaster(value);
+					this.callbacks.onSelect(master);
+				}
 			})
 		}
 
@@ -105,7 +132,7 @@ namespace SearchPharmaDrug {
 	export function populate(parent: HTMLElement): Controller {
 		let input = h.input({}, []);
 		let execButton = h.button({type: "submit"}, ["検索実行"]);
-		let searchResult = h.select({class:"pharmadrug-search-result"}, []);
+		let searchResult = h.select({class:"pharmadrug-search-result", size: 10}, []);
 		let selectButton = h.button({}, ["選択"]);
 		let cancelButton = h.button({}, ["キャンセル"]);
 		let form = h.form({}, [
@@ -140,19 +167,31 @@ namespace NewForm {
 	}
 
 	export interface Callbacks {
-
+		onCancel: () => void;
 	}
 
 	export class Controller {
 		private layout: Layout;
+		private iyakuhincode: number | null = null;
+		callbacks: Callbacks;
 
 		constructor(layout: Layout){
 			this.layout = layout;
+			this.callbacks = {
+				onCancel: () => {}
+			}
 			this.hideSearch();
 			this.bindSearchButton();
+			this.bindCancelButton();
+			this.layout.search.callbacks.onSelect = (master: IyakuhinMaster) => {
+				this.iyakuhincode = master.iyakuhincode;
+				this.layout.name.innerHTML = "";
+				this.hideSearch();
+				appendToElement(this.layout.name, [master.name]);
+			};
 			this.layout.search.callbacks.onCancel = () => {
 				this.hideSearch();
-			}
+			};
 		}
 
 		appendTo(parent: HTMLElement): void {
@@ -177,6 +216,13 @@ namespace NewForm {
 				} else {
 					this.hideSearch();
 				}
+			})
+		}
+
+		private bindCancelButton(): void {
+			let button = this.layout.cancel;
+			button.addEventListener("click", event => {
+				this.callbacks.onCancel();
 			})
 		}
 	}
@@ -242,7 +288,7 @@ namespace EditorWorkarea {
 	}
 
 	export interface Callbacks {
-
+		onCancel: () => void;
 	}
 
 	export class Controller {
@@ -251,7 +297,9 @@ namespace EditorWorkarea {
 
 		constructor(layout: Layout){
 			this.layout = layout;
-			this.callbacks = {};
+			this.callbacks = {
+				onCancel: () => {}
+			};
 		}
 
 		async switchTo(choice: EditorMenu.MenuChoice): Promise<void>{
@@ -266,6 +314,10 @@ namespace EditorWorkarea {
 			let wrapper = this.layout.wrapper;
 			wrapper.innerHTML = "";
 			let form: NewForm.Controller = NewForm.populate(wrapper);
+			form.callbacks.onCancel = () => {
+				wrapper.innerHTML = "";
+				this.callbacks.onCancel();
+			}
 			form.appendTo(wrapper);
 		}
 
@@ -303,7 +355,10 @@ namespace LeftPane {
 			this.callbacks = {};
 			this.layout.menu.callbacks.onChoice = (choice: EditorMenu.MenuChoice) => {
 				this.layout.workarea.switchTo(choice);
-			}
+			};
+			this.layout.workarea.callbacks.onCancel = () => {
+				this.layout.menu.switchTo(null, false);
+			};
 		}
 	}
 

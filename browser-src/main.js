@@ -8,6 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 const typed_dom_1 = require("./typed-dom");
+const service = require("./service");
 var EditorMenu;
 (function (EditorMenu) {
     class Controller {
@@ -19,22 +20,24 @@ var EditorMenu;
                 onSameChoice: (choice) => { }
             };
             layout.newLink.addEventListener("click", event => {
-                this.handleClick("new");
+                this.switchTo("new", true);
             });
             layout.editLink.addEventListener("click", event => {
-                this.handleClick("edit");
+                this.switchTo("edit", true);
             });
         }
-        handleClick(choice) {
-            return __awaiter(this, void 0, void 0, function* () {
-                if (this.currentChoice === choice) {
+        switchTo(choice, triggerCallback) {
+            if (this.currentChoice === choice) {
+                if (triggerCallback) {
                     this.callbacks.onSameChoice(choice);
                 }
-                else {
-                    this.currentChoice = choice;
+            }
+            else {
+                this.currentChoice = choice;
+                if (triggerCallback) {
                     this.callbacks.onChoice(choice);
                 }
-            });
+            }
         }
     }
     EditorMenu.Controller = Controller;
@@ -58,9 +61,11 @@ var SearchPharmaDrug;
         constructor(layout) {
             this.layout = layout;
             this.callbacks = {
+                onSelect: _ => { },
                 onCancel: () => { }
             };
             this.bindExecButton();
+            this.bindSelectButton();
             this.bindCancelButton();
         }
         focus() {
@@ -68,10 +73,28 @@ var SearchPharmaDrug;
         }
         bindExecButton() {
             let button = this.layout.execButton;
-            button.addEventListener("click", event => {
+            button.addEventListener("click", (event) => __awaiter(this, void 0, void 0, function* () {
                 let text = this.layout.input.value.trim();
-                console.log(text);
-            });
+                let masters = yield service.searchIyakuhinMaster(text);
+                let select = this.layout.searchResult;
+                select.innerHTML = "";
+                masters.forEach(m => {
+                    let opt = typed_dom_1.h.option({ value: m.iyakuhincode }, [m.name]);
+                    select.appendChild(opt);
+                });
+            }));
+        }
+        bindSelectButton() {
+            let button = this.layout.selectButton;
+            button.addEventListener("click", (event) => __awaiter(this, void 0, void 0, function* () {
+                let select = this.layout.searchResult;
+                let opt = select.querySelector("option:checked");
+                if (opt !== null) {
+                    let value = +opt.value;
+                    let master = yield service.getMostRecentIyakuhinMaster(value);
+                    this.callbacks.onSelect(master);
+                }
+            }));
         }
         bindCancelButton() {
             this.layout.cancelButton.addEventListener("click", event => {
@@ -83,7 +106,7 @@ var SearchPharmaDrug;
     function populate(parent) {
         let input = typed_dom_1.h.input({}, []);
         let execButton = typed_dom_1.h.button({ type: "submit" }, ["検索実行"]);
-        let searchResult = typed_dom_1.h.select({ class: "pharmadrug-search-result" }, []);
+        let searchResult = typed_dom_1.h.select({ class: "pharmadrug-search-result", size: 10 }, []);
         let selectButton = typed_dom_1.h.button({}, ["選択"]);
         let cancelButton = typed_dom_1.h.button({}, ["キャンセル"]);
         let form = typed_dom_1.h.form({}, [
@@ -108,9 +131,20 @@ var NewForm;
 (function (NewForm) {
     class Controller {
         constructor(layout) {
+            this.iyakuhincode = null;
             this.layout = layout;
+            this.callbacks = {
+                onCancel: () => { }
+            };
             this.hideSearch();
             this.bindSearchButton();
+            this.bindCancelButton();
+            this.layout.search.callbacks.onSelect = (master) => {
+                this.iyakuhincode = master.iyakuhincode;
+                this.layout.name.innerHTML = "";
+                this.hideSearch();
+                typed_dom_1.appendToElement(this.layout.name, [master.name]);
+            };
             this.layout.search.callbacks.onCancel = () => {
                 this.hideSearch();
             };
@@ -135,6 +169,12 @@ var NewForm;
                 else {
                     this.hideSearch();
                 }
+            });
+        }
+        bindCancelButton() {
+            let button = this.layout.cancel;
+            button.addEventListener("click", event => {
+                this.callbacks.onCancel();
             });
         }
     }
@@ -197,7 +237,9 @@ var EditorWorkarea;
     class Controller {
         constructor(layout) {
             this.layout = layout;
-            this.callbacks = {};
+            this.callbacks = {
+                onCancel: () => { }
+            };
         }
         switchTo(choice) {
             return __awaiter(this, void 0, void 0, function* () {
@@ -214,6 +256,10 @@ var EditorWorkarea;
             let wrapper = this.layout.wrapper;
             wrapper.innerHTML = "";
             let form = NewForm.populate(wrapper);
+            form.callbacks.onCancel = () => {
+                wrapper.innerHTML = "";
+                this.callbacks.onCancel();
+            };
             form.appendTo(wrapper);
         }
         switchToEdit() {
@@ -245,6 +291,9 @@ var LeftPane;
             this.callbacks = {};
             this.layout.menu.callbacks.onChoice = (choice) => {
                 this.layout.workarea.switchTo(choice);
+            };
+            this.layout.workarea.callbacks.onCancel = () => {
+                this.layout.menu.switchTo(null, false);
             };
         }
     }

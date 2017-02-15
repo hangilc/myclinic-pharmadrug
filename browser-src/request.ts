@@ -18,7 +18,7 @@ export function convertToString(src: any): string {
 	return "" + src;
 }
 
-export function request<T>(url: string, data: Object, method: string, cvtor: Converter<T>){
+export function request<T>(url: string, data: Object, method: string, cvtor: Converter<T>): Promise<T>{
     return new Promise(function (resolve, reject) {
         let dataValue: any;
         if( method === "POST" && typeof data !== "string" ){
