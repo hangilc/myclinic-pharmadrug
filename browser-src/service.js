@@ -96,3 +96,9 @@ function searchPharmaDrug(text) {
     });
 }
 exports.searchPharmaDrug = searchPharmaDrug;
+function deletePharmaDrug(iyakuhincode) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return request_1.request("/service?_q=delete_pharma_drug", { iyakuhincode: iyakuhincode }, "POST", convertToBoolean);
+    });
+}
+exports.deletePharmaDrug = deletePharmaDrug;

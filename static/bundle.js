@@ -400,6 +400,7 @@
 	            this.bindSearchButton();
 	            this.bindEnterButton();
 	            this.bindCancelButton();
+	            this.bindDeleteLink();
 	            this.layout.search.callbacks.onSelect = (drug) => {
 	                this.iyakuhincode = drug.drug.iyakuhincode;
 	                this.layout.description.value = drug.drug.description;
@@ -474,6 +475,26 @@
 	                this.callbacks.onCancel();
 	            });
 	        }
+	        bindDeleteLink() {
+	            let link = this.layout.deleteLink;
+	            link.addEventListener("click", (event) => __awaiter(this, void 0, void 0, function* () {
+	                let iyakuhincode = this.iyakuhincode;
+	                if (iyakuhincode === null) {
+	                    alert("薬剤名が設定されていません。");
+	                    return;
+	                }
+	                if (!(iyakuhincode > 0)) {
+	                    alert("薬剤名が不適切です。");
+	                    return;
+	                }
+	                let master = yield service.getMostRecentIyakuhinMaster(iyakuhincode);
+	                if (confirm(master.name + "の薬剤情報を削除していいですか？")) {
+	                    yield service.deletePharmaDrug(iyakuhincode);
+	                    alert(master.name + "の薬剤情報を削除しました。");
+	                    this.callbacks.onDelete(iyakuhincode);
+	                }
+	            }));
+	        }
 	    }
 	    EditForm.Controller = Controller;
 	    function populate(parent) {
@@ -483,6 +504,7 @@
 	        let desc = typed_dom_1.h.textarea({ class: "description" }, []);
 	        let side = typed_dom_1.h.textarea({ class: "sideeffect" }, []);
 	        let enter = typed_dom_1.h.button({}, ["変更実行"]);
+	        let deleteLink = typed_dom_1.h.a({}, ["削除"]);
 	        let cancel = typed_dom_1.h.button({}, ["キャンセル"]);
 	        let form = typed_dom_1.h.form({}, [
 	            typed_dom_1.h.table({ class: "editor" }, [
@@ -510,7 +532,8 @@
 	            ]),
 	            typed_dom_1.h.div({}, [
 	                enter, " ",
-	                cancel
+	                cancel, " ",
+	                deleteLink
 	            ])
 	        ]);
 	        let layout = {
@@ -520,6 +543,7 @@
 	            sideeffect: side,
 	            enter: enter,
 	            cancel: cancel,
+	            deleteLink: deleteLink,
 	            searchButton: searchButton,
 	            searchWrapper: searchWrapper,
 	            search: SearchPharmaDrug.populate(searchWrapper)
@@ -537,6 +561,7 @@
 	            this.callbacks = {
 	                onEnter: (_) => { },
 	                onUpdate: (_) => { },
+	                onDelete: (_) => { },
 	                onCancel: () => { }
 	            };
 	        }
@@ -572,6 +597,10 @@
 	            form.callbacks.onUpdate = (iyakuhincode) => {
 	                wrapper.innerHTML = "";
 	                this.callbacks.onUpdate(iyakuhincode);
+	            };
+	            form.callbacks.onDelete = (iyakuhincode) => {
+	                wrapper.innerHTML = "";
+	                this.callbacks.onDelete(iyakuhincode);
 	            };
 	            form.callbacks.onCancel = () => {
 	                wrapper.innerHTML = "";
@@ -609,6 +638,10 @@
 	                this.layout.menu.switchTo("new", true);
 	            };
 	            this.layout.workarea.callbacks.onUpdate = (iyakuhincode) => {
+	                this.layout.menu.switchTo(null, true);
+	                this.layout.menu.switchTo("edit", true);
+	            };
+	            this.layout.workarea.callbacks.onDelete = (iyakuhincode) => {
 	                this.layout.menu.switchTo(null, true);
 	                this.layout.menu.switchTo("edit", true);
 	            };
@@ -879,6 +912,12 @@
 	    });
 	}
 	exports.searchPharmaDrug = searchPharmaDrug;
+	function deletePharmaDrug(iyakuhincode) {
+	    return __awaiter(this, void 0, void 0, function* () {
+	        return request_1.request("/service?_q=delete_pharma_drug", { iyakuhincode: iyakuhincode }, "POST", convertToBoolean);
+	    });
+	}
+	exports.deletePharmaDrug = deletePharmaDrug;
 
 
 /***/ },

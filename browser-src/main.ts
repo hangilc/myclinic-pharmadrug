@@ -420,6 +420,7 @@ namespace EditForm {
 		sideeffect: HTMLTextAreaElement;
 		enter: HTMLElement;
 		cancel: HTMLElement;
+		deleteLink: HTMLElement;
 		searchButton: HTMLElement;
 		searchWrapper: HTMLElement;
 		search: SearchPharmaDrug.Controller;
@@ -427,6 +428,7 @@ namespace EditForm {
 
 	export interface Callbacks {
 		onUpdate: (iyakuhincode: number) => void;
+		onDelete: (iyakuhincode: number) => void;
 		onCancel: () => void;
 	}
 
@@ -445,6 +447,7 @@ namespace EditForm {
 			this.bindSearchButton();
 			this.bindEnterButton();
 			this.bindCancelButton();
+			this.bindDeleteLink();
 			this.layout.search.callbacks.onSelect = (drug: PharmaDrugEx) => {
 				this.iyakuhincode = drug.drug.iyakuhincode;
 				this.layout.description.value = drug.drug.description;
@@ -524,6 +527,27 @@ namespace EditForm {
 			})
 		}
 
+		private bindDeleteLink(): void {
+			let link = this.layout.deleteLink;
+			link.addEventListener("click", async event => {
+				let iyakuhincode = this.iyakuhincode;
+				if( iyakuhincode === null ){
+					alert("薬剤名が設定されていません。");
+					return;
+				}
+				if( !(iyakuhincode > 0) ){
+					alert("薬剤名が不適切です。");
+					return;
+				}
+				let master = await service.getMostRecentIyakuhinMaster(iyakuhincode);
+				if( confirm(master.name + "の薬剤情報を削除していいですか？") ){
+					await service.deletePharmaDrug(iyakuhincode);
+					alert(master.name + "の薬剤情報を削除しました。");
+					this.callbacks.onDelete(iyakuhincode);
+				}
+			});
+		}
+
 	}
 
 	export function populate(parent: HTMLElement): Controller {
@@ -533,6 +557,7 @@ namespace EditForm {
 		let desc = h.textarea({class:"description"}, []);
 		let side = h.textarea({class:"sideeffect"}, []);
 		let enter = h.button({}, ["変更実行"]);
+		let deleteLink = h.a({}, ["削除"]);
 		let cancel = h.button({}, ["キャンセル"]);
 		let form = h.form({}, [
 			h.table({class:"editor"}, [
@@ -560,7 +585,8 @@ namespace EditForm {
 			]),
 			h.div({}, [
 				enter, " ",
-				cancel
+				cancel, " ",
+				deleteLink
 			])
 		]);
 
@@ -571,6 +597,7 @@ namespace EditForm {
 			sideeffect: side,
 			enter: enter,
 			cancel: cancel,
+			deleteLink: deleteLink,
 			searchButton: searchButton,
 			searchWrapper: searchWrapper,
 			search: SearchPharmaDrug.populate(searchWrapper)
@@ -589,6 +616,7 @@ namespace EditorWorkarea {
 	export interface Callbacks {
 		onEnter: (iyakuhincode: number) => void;
 		onUpdate: (iyakuhincode: number) => void;
+		onDelete: (iyakuhincode: number) => void;
 		onCancel: () => void;
 	}
 
@@ -601,6 +629,7 @@ namespace EditorWorkarea {
 			this.callbacks = {
 				onEnter: (_) => {},
 				onUpdate: (_) => {},
+				onDelete: (_) => {},
 				onCancel: () => {}
 			};
 		}
@@ -635,6 +664,10 @@ namespace EditorWorkarea {
 			form.callbacks.onUpdate = (iyakuhincode: number) => {
 				wrapper.innerHTML = "";
 				this.callbacks.onUpdate(iyakuhincode);
+			};
+			form.callbacks.onDelete = (iyakuhincode: number) => {
+				wrapper.innerHTML = "";
+				this.callbacks.onDelete(iyakuhincode);
 			};
 			form.callbacks.onCancel = () => {
 				wrapper.innerHTML = "";
@@ -677,6 +710,10 @@ namespace LeftPane {
 				this.layout.menu.switchTo("new", true);
 			};
 			this.layout.workarea.callbacks.onUpdate = (iyakuhincode: number) => {
+				this.layout.menu.switchTo(null, true);
+				this.layout.menu.switchTo("edit", true);
+			};
+			this.layout.workarea.callbacks.onDelete = (iyakuhincode: number) => {
 				this.layout.menu.switchTo(null, true);
 				this.layout.menu.switchTo("edit", true);
 			};

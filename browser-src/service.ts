@@ -76,3 +76,7 @@ export async function searchPharmaDrug(text: string): Promise<PharmaDrugEx[]> {
 	}
 	return list;
 }
+
+export async function deletePharmaDrug(iyakuhincode: number): Promise<boolean> {
+	return request<boolean>("/service?_q=delete_pharma_drug", {iyakuhincode: iyakuhincode}, "POST", convertToBoolean);
+}
