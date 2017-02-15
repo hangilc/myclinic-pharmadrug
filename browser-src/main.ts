@@ -1,5 +1,6 @@
 import { h, appendToElement } from "./typed-dom";
 import * as service from "./service";
+import { PharmaDrugEx } from "./service";
 import { IyakuhinMaster } from "./model/iyakuhin-master";
 
 namespace EditorMenu {
@@ -62,7 +63,7 @@ namespace EditorMenu {
 	}
 }
 
-namespace SearchPharmaDrug {
+namespace SearchIyakuhinMaster {
 	export interface Layout {
 		input: HTMLInputElement;
 		execButton: HTMLElement;
@@ -153,6 +154,97 @@ namespace SearchPharmaDrug {
 	}
 }
 
+namespace SearchPharmaDrug {
+	export interface Layout {
+		input: HTMLInputElement;
+		execButton: HTMLElement;
+		searchResult: HTMLSelectElement;
+		selectButton: HTMLElement;
+		cancelButton: HTMLElement;
+	}
+
+	export interface Callbacks {
+		onSelect: (drug: PharmaDrugEx) => void;
+		onCancel: () => void;
+	}
+
+	export class Controller {
+		private layout: Layout;
+		callbacks: Callbacks;
+
+		constructor(layout: Layout){
+			this.layout = layout;
+			this.callbacks = {
+				onSelect: _ => {},
+				onCancel: () => {}
+			};
+			this.bindExecButton();
+			this.bindSelectButton();
+			this.bindCancelButton();
+		}
+
+		focus(): void {
+			this.layout.input.focus();
+		}
+
+		private bindExecButton(): void {
+			let button = this.layout.execButton;
+			button.addEventListener("click", async event => {
+				let text = this.layout.input.value.trim();
+				let drugs = await service.searchPharmaDrug(text);
+				let select = this.layout.searchResult;
+				select.innerHTML = "";
+				drugs.forEach(d => {
+					let opt = h.option({value: d.drug.iyakuhincode}, [d.master.name]);
+					select.appendChild(opt);
+				})
+			})
+		}
+
+		private bindSelectButton(): void {
+			let button = this.layout.selectButton;
+			button.addEventListener("click", async event => {
+				let select = this.layout.searchResult;
+				let opt = select.querySelector("option:checked");
+				if( opt !== null ){
+					let value = +(<HTMLOptionElement>opt).value;
+					let drug = await service.getPharmaDrugEx(value);
+					this.callbacks.onSelect(drug);
+				}
+			})
+		}
+
+		private bindCancelButton(): void {
+			this.layout.cancelButton.addEventListener("click", event => {
+				this.callbacks.onCancel();
+			})
+		}
+	}
+
+	export function populate(parent: HTMLElement): Controller {
+		let input = h.input({}, []);
+		let execButton = h.button({type: "submit"}, ["検索実行"]);
+		let searchResult = h.select({class:"pharmadrug-search-result", size: 10}, []);
+		let selectButton = h.button({}, ["選択"]);
+		let cancelButton = h.button({}, ["キャンセル"]);
+		let form = h.form({}, [
+			input, " ",
+			execButton,
+			h.div({}, [searchResult]),
+			h.div({}, [selectButton, " ", cancelButton])
+		]);
+		appendToElement(parent, [form]);
+		let layout = {
+			input,
+			execButton,
+			searchResult,
+			selectButton,
+			cancelButton
+		}
+		return new Controller(layout);
+	}
+}
+
 namespace NewForm {
 	export interface Layout {
 		form: HTMLElement;
@@ -163,7 +255,7 @@ namespace NewForm {
 		cancel: HTMLElement;
 		searchButton: HTMLElement;
 		searchWrapper: HTMLElement;
-		search: SearchPharmaDrug.Controller;
+		search: SearchIyakuhinMaster.Controller;
 	}
 
 	export interface Callbacks {
@@ -266,12 +358,181 @@ namespace NewForm {
 	}
 
 	export function populate(parent: HTMLElement): Controller {
-		let name = h.div({}, []);
+		let name = h.span({}, []);
 		let searchButton = h.button({}, ["検索"]);
 		let searchWrapper = h.div({}, []);
 		let desc = h.textarea({class:"description"}, []);
 		let side = h.textarea({class:"sideeffect"}, []);
 		let enter = h.button({}, ["入力"]);
+		let cancel = h.button({}, ["キャンセル"]);
+		let form = h.form({}, [
+			h.table({class:"editor"}, [
+				h.colgroup({}, [
+					h.col({class:"label"}, [])
+				]),
+				h.colgroup({}, [
+					h.col({class:"input"}, [])
+				]),
+				h.tr({}, [
+					h.td({}, ["薬剤名"]),
+					h.td({}, [
+						h.div({}, [name, " ", searchButton]), 
+						searchWrapper
+					])
+				]),
+				h.tr({}, [
+					h.td({}, ["説明"]),
+					h.td({}, [desc])
+				]),
+				h.tr({}, [
+					h.td({}, ["副作用："]),
+					h.td({}, [side])
+				])
+			]),
+			h.div({}, [
+				enter, " ",
+				cancel
+			])
+		]);
+
+		let layout = {
+			form: form,
+			name: name,
+			description: desc,
+			sideeffect: side,
+			enter: enter,
+			cancel: cancel,
+			searchButton: searchButton,
+			searchWrapper: searchWrapper,
+			search: SearchIyakuhinMaster.populate(searchWrapper)
+		}
+		appendToElement(parent, [form]);
+		return new Controller(layout);
+	}
+
+}
+
+namespace EditForm {
+	export interface Layout {
+		form: HTMLElement;
+		name: HTMLElement;
+		description: HTMLTextAreaElement;
+		sideeffect: HTMLTextAreaElement;
+		enter: HTMLElement;
+		cancel: HTMLElement;
+		searchButton: HTMLElement;
+		searchWrapper: HTMLElement;
+		search: SearchPharmaDrug.Controller;
+	}
+
+	export interface Callbacks {
+		onUpdate: (iyakuhincode: number) => void;
+		onCancel: () => void;
+	}
+
+	export class Controller {
+		private layout: Layout;
+		private iyakuhincode: number | null = null;
+		callbacks: Callbacks;
+
+		constructor(layout: Layout){
+			this.layout = layout;
+			this.callbacks = {
+				onUpdate: _ => {},
+				onCancel: () => {}
+			}
+			this.hideSearch();
+			this.bindSearchButton();
+			this.bindEnterButton();
+			this.bindCancelButton();
+			this.layout.search.callbacks.onSelect = (drug: PharmaDrugEx) => {
+				this.iyakuhincode = drug.drug.iyakuhincode;
+				this.layout.description.value = drug.drug.description;
+				this.layout.sideeffect.value = drug.drug.sideEffect;
+				this.layout.name.innerHTML = "";
+				this.hideSearch();
+				appendToElement(this.layout.name, [drug.master.name]);
+			};
+			this.layout.search.callbacks.onCancel = () => {
+				this.hideSearch();
+			};
+		}
+
+		appendTo(parent: HTMLElement): void {
+			parent.appendChild(this.layout.form);
+		}
+
+		private hideSearch(): void {
+			this.layout.searchWrapper.style.display = "none";
+		}
+
+		private showSearch(): void {
+			this.layout.searchWrapper.style.display = "";
+			this.layout.search.focus();
+		}
+
+		private bindSearchButton(): void {
+			let button = this.layout.searchButton;
+			button.addEventListener("click", event => {
+				let wrapper = this.layout.searchWrapper;
+				if( wrapper.style.display === "none" ){
+					this.showSearch();
+				} else {
+					this.hideSearch();
+				}
+			})
+		}
+
+		private bindEnterButton(): void {
+			let button = this.layout.enter;
+			button.addEventListener("click", async event => {
+				let iyakuhincode = this.iyakuhincode;
+				if( iyakuhincode === null ){
+					alert("薬剤名が指定されていません。");
+					return;
+				} else {
+					if( !(iyakuhincode > 0) ){
+						alert("薬剤名が適切でありません。");
+						return;
+					}
+					let desc = this.layout.description.value;
+					let side = this.layout.sideeffect.value;
+					let drug = {
+						iyakuhincode,
+						description: desc,
+						sideEffect: side
+					};
+					await service.updatePharmaDrug(drug);
+					{
+						let newDrug = await service.getPharmaDrug(iyakuhincode);
+						let master = await service.getMostRecentIyakuhinMaster(iyakuhincode);
+						let msg = "薬剤情報が変更されました。\n" +
+							"薬剤名：" + master.name + "\n" +
+							"説明：" + newDrug.description + "\n" +
+							"副作用：" + newDrug.sideEffect ;
+						alert(msg);
+						this.callbacks.onUpdate(iyakuhincode);
+					}
+				}
+			});
+		}
+
+		private bindCancelButton(): void {
+			let button = this.layout.cancel;
+			button.addEventListener("click", event => {
+				this.callbacks.onCancel();
+			})
+		}
+
+	}
+
+	export function populate(parent: HTMLElement): Controller {
+		let name = h.span({}, []);
+		let searchButton = h.button({}, ["検索"]);
+		let searchWrapper = h.div({}, []);
+		let desc = h.textarea({class:"description"}, []);
+		let side = h.textarea({class:"sideeffect"}, []);
+		let enter = h.button({}, ["変更実行"]);
 		let cancel = h.button({}, ["キャンセル"]);
 		let form = h.form({}, [
 			h.table({class:"editor"}, [
@@ -327,6 +588,7 @@ namespace EditorWorkarea {
 
 	export interface Callbacks {
 		onEnter: (iyakuhincode: number) => void;
+		onUpdate: (iyakuhincode: number) => void;
 		onCancel: () => void;
 	}
 
@@ -338,6 +600,7 @@ namespace EditorWorkarea {
 			this.layout = layout;
 			this.callbacks = {
 				onEnter: (_) => {},
+				onUpdate: (_) => {},
 				onCancel: () => {}
 			};
 		}
@@ -368,7 +631,16 @@ namespace EditorWorkarea {
 		private switchToEdit(){
 			let wrapper = this.layout.wrapper;
 			wrapper.innerHTML = "";
-			appendToElement(wrapper, ["EDIT"]);
+			let form: EditForm.Controller = EditForm.populate(wrapper);
+			form.callbacks.onUpdate = (iyakuhincode: number) => {
+				wrapper.innerHTML = "";
+				this.callbacks.onUpdate(iyakuhincode);
+			};
+			form.callbacks.onCancel = () => {
+				wrapper.innerHTML = "";
+				this.callbacks.onCancel();
+			};
+			form.appendTo(wrapper);
 		}
 	}
 
@@ -403,6 +675,10 @@ namespace LeftPane {
 			this.layout.workarea.callbacks.onEnter = (iyakuhincode: number) => {
 				this.layout.menu.switchTo(null, true);
 				this.layout.menu.switchTo("new", true);
+			};
+			this.layout.workarea.callbacks.onUpdate = (iyakuhincode: number) => {
+				this.layout.menu.switchTo(null, true);
+				this.layout.menu.switchTo("edit", true);
 			};
 			this.layout.workarea.callbacks.onCancel = () => {
 				this.layout.menu.switchTo(null, false);

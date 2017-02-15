@@ -12,6 +12,9 @@ const iyakuhin_master_1 = require("./model/iyakuhin-master");
 const pharma_drug_1 = require("./model/pharma-drug");
 let numberArrayConverter = request_1.arrayConverter(request_1.convertToNumber);
 let iyakuhinMasterArrayConverter = request_1.arrayConverter(iyakuhin_master_1.jsonToIyakuhinMaster);
+function convertToBoolean(src) {
+    return src ? true : false;
+}
 function searchIyakuhincodes(text) {
     return __awaiter(this, void 0, void 0, function* () {
         return request_1.request("/service?_q=search_most_recent_iyakuhin_master", { text: text }, "GET", numberArrayConverter);
@@ -48,9 +51,48 @@ function enterPharmaDrug(pharmaDrug) {
     });
 }
 exports.enterPharmaDrug = enterPharmaDrug;
+function updatePharmaDrug(pharmaDrug) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return request_1.request("/service?_q=update_pharma_drug", {
+            iyakuhincode: pharmaDrug.iyakuhincode,
+            description: pharmaDrug.description,
+            sideeffect: pharmaDrug.sideEffect
+        }, "POST", convertToBoolean);
+    });
+}
+exports.updatePharmaDrug = updatePharmaDrug;
 function getPharmaDrug(iyakuhincode) {
     return __awaiter(this, void 0, void 0, function* () {
         return request_1.request("/service?_q=get_pharma_drug", { iyakuhincode: iyakuhincode }, "GET", pharma_drug_1.jsonToPharmaDrug);
     });
 }
 exports.getPharmaDrug = getPharmaDrug;
+function getPharmaDrugEx(iyakuhincode) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let drug = yield getPharmaDrug(iyakuhincode);
+        let master = yield getMostRecentIyakuhinMaster(iyakuhincode);
+        return {
+            drug,
+            master
+        };
+    });
+}
+exports.getPharmaDrugEx = getPharmaDrugEx;
+function searchPharmaDrug(text) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let iyakuhincodes = yield request_1.request("/service?_q=search_pharma_drug", { text: text }, "GET", numberArrayConverter);
+        let drugs = yield Promise.all(iyakuhincodes.map(code => {
+            return getPharmaDrug(code);
+        }));
+        let masters = yield batchGetMostRecentIyakuhinMaster(iyakuhincodes);
+        let list = [];
+        for (let i = 0; i < iyakuhincodes.length; i++) {
+            list.push({
+                drug: drugs[i],
+                master: masters[i]
+            });
+        }
+        return list;
+    });
+}
+exports.searchPharmaDrug = searchPharmaDrug;

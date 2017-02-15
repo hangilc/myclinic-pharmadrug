@@ -101,8 +101,8 @@
 	    }
 	    EditorMenu.populate = populate;
 	})(EditorMenu || (EditorMenu = {}));
-	var SearchPharmaDrug;
-	(function (SearchPharmaDrug) {
+	var SearchIyakuhinMaster;
+	(function (SearchIyakuhinMaster) {
 	    class Controller {
 	        constructor(layout) {
 	            this.layout = layout;
@@ -139,6 +139,78 @@
 	                    let value = +opt.value;
 	                    let master = yield service.getMostRecentIyakuhinMaster(value);
 	                    this.callbacks.onSelect(master);
+	                }
+	            }));
+	        }
+	        bindCancelButton() {
+	            this.layout.cancelButton.addEventListener("click", event => {
+	                this.callbacks.onCancel();
+	            });
+	        }
+	    }
+	    SearchIyakuhinMaster.Controller = Controller;
+	    function populate(parent) {
+	        let input = typed_dom_1.h.input({}, []);
+	        let execButton = typed_dom_1.h.button({ type: "submit" }, ["検索実行"]);
+	        let searchResult = typed_dom_1.h.select({ class: "pharmadrug-search-result", size: 10 }, []);
+	        let selectButton = typed_dom_1.h.button({}, ["選択"]);
+	        let cancelButton = typed_dom_1.h.button({}, ["キャンセル"]);
+	        let form = typed_dom_1.h.form({}, [
+	            input, " ",
+	            execButton,
+	            typed_dom_1.h.div({}, [searchResult]),
+	            typed_dom_1.h.div({}, [selectButton, " ", cancelButton])
+	        ]);
+	        typed_dom_1.appendToElement(parent, [form]);
+	        let layout = {
+	            input,
+	            execButton,
+	            searchResult,
+	            selectButton,
+	            cancelButton
+	        };
+	        return new Controller(layout);
+	    }
+	    SearchIyakuhinMaster.populate = populate;
+	})(SearchIyakuhinMaster || (SearchIyakuhinMaster = {}));
+	var SearchPharmaDrug;
+	(function (SearchPharmaDrug) {
+	    class Controller {
+	        constructor(layout) {
+	            this.layout = layout;
+	            this.callbacks = {
+	                onSelect: _ => { },
+	                onCancel: () => { }
+	            };
+	            this.bindExecButton();
+	            this.bindSelectButton();
+	            this.bindCancelButton();
+	        }
+	        focus() {
+	            this.layout.input.focus();
+	        }
+	        bindExecButton() {
+	            let button = this.layout.execButton;
+	            button.addEventListener("click", (event) => __awaiter(this, void 0, void 0, function* () {
+	                let text = this.layout.input.value.trim();
+	                let drugs = yield service.searchPharmaDrug(text);
+	                let select = this.layout.searchResult;
+	                select.innerHTML = "";
+	                drugs.forEach(d => {
+	                    let opt = typed_dom_1.h.option({ value: d.drug.iyakuhincode }, [d.master.name]);
+	                    select.appendChild(opt);
+	                });
+	            }));
+	        }
+	        bindSelectButton() {
+	            let button = this.layout.selectButton;
+	            button.addEventListener("click", (event) => __awaiter(this, void 0, void 0, function* () {
+	                let select = this.layout.searchResult;
+	                let opt = select.querySelector("option:checked");
+	                if (opt !== null) {
+	                    let value = +opt.value;
+	                    let drug = yield service.getPharmaDrugEx(value);
+	                    this.callbacks.onSelect(drug);
 	                }
 	            }));
 	        }
@@ -262,7 +334,7 @@
 	    }
 	    NewForm.Controller = Controller;
 	    function populate(parent) {
-	        let name = typed_dom_1.h.div({}, []);
+	        let name = typed_dom_1.h.span({}, []);
 	        let searchButton = typed_dom_1.h.button({}, ["検索"]);
 	        let searchWrapper = typed_dom_1.h.div({}, []);
 	        let desc = typed_dom_1.h.textarea({ class: "description" }, []);
@@ -307,13 +379,156 @@
 	            cancel: cancel,
 	            searchButton: searchButton,
 	            searchWrapper: searchWrapper,
-	            search: SearchPharmaDrug.populate(searchWrapper)
+	            search: SearchIyakuhinMaster.populate(searchWrapper)
 	        };
 	        typed_dom_1.appendToElement(parent, [form]);
 	        return new Controller(layout);
 	    }
 	    NewForm.populate = populate;
 	})(NewForm || (NewForm = {}));
+	var EditForm;
+	(function (EditForm) {
+	    class Controller {
+	        constructor(layout) {
+	            this.iyakuhincode = null;
+	            this.layout = layout;
+	            this.callbacks = {
+	                onUpdate: _ => { },
+	                onCancel: () => { }
+	            };
+	            this.hideSearch();
+	            this.bindSearchButton();
+	            this.bindEnterButton();
+	            this.bindCancelButton();
+	            this.layout.search.callbacks.onSelect = (drug) => {
+	                this.iyakuhincode = drug.drug.iyakuhincode;
+	                this.layout.description.value = drug.drug.description;
+	                this.layout.sideeffect.value = drug.drug.sideEffect;
+	                this.layout.name.innerHTML = "";
+	                this.hideSearch();
+	                typed_dom_1.appendToElement(this.layout.name, [drug.master.name]);
+	            };
+	            this.layout.search.callbacks.onCancel = () => {
+	                this.hideSearch();
+	            };
+	        }
+	        appendTo(parent) {
+	            parent.appendChild(this.layout.form);
+	        }
+	        hideSearch() {
+	            this.layout.searchWrapper.style.display = "none";
+	        }
+	        showSearch() {
+	            this.layout.searchWrapper.style.display = "";
+	            this.layout.search.focus();
+	        }
+	        bindSearchButton() {
+	            let button = this.layout.searchButton;
+	            button.addEventListener("click", event => {
+	                let wrapper = this.layout.searchWrapper;
+	                if (wrapper.style.display === "none") {
+	                    this.showSearch();
+	                }
+	                else {
+	                    this.hideSearch();
+	                }
+	            });
+	        }
+	        bindEnterButton() {
+	            let button = this.layout.enter;
+	            button.addEventListener("click", (event) => __awaiter(this, void 0, void 0, function* () {
+	                let iyakuhincode = this.iyakuhincode;
+	                if (iyakuhincode === null) {
+	                    alert("薬剤名が指定されていません。");
+	                    return;
+	                }
+	                else {
+	                    if (!(iyakuhincode > 0)) {
+	                        alert("薬剤名が適切でありません。");
+	                        return;
+	                    }
+	                    let desc = this.layout.description.value;
+	                    let side = this.layout.sideeffect.value;
+	                    let drug = {
+	                        iyakuhincode,
+	                        description: desc,
+	                        sideEffect: side
+	                    };
+	                    yield service.updatePharmaDrug(drug);
+	                    {
+	                        let newDrug = yield service.getPharmaDrug(iyakuhincode);
+	                        let master = yield service.getMostRecentIyakuhinMaster(iyakuhincode);
+	                        let msg = "薬剤情報が変更されました。\n" +
+	                            "薬剤名：" + master.name + "\n" +
+	                            "説明：" + newDrug.description + "\n" +
+	                            "副作用：" + newDrug.sideEffect;
+	                        alert(msg);
+	                        this.callbacks.onUpdate(iyakuhincode);
+	                    }
+	                }
+	            }));
+	        }
+	        bindCancelButton() {
+	            let button = this.layout.cancel;
+	            button.addEventListener("click", event => {
+	                this.callbacks.onCancel();
+	            });
+	        }
+	    }
+	    EditForm.Controller = Controller;
+	    function populate(parent) {
+	        let name = typed_dom_1.h.span({}, []);
+	        let searchButton = typed_dom_1.h.button({}, ["検索"]);
+	        let searchWrapper = typed_dom_1.h.div({}, []);
+	        let desc = typed_dom_1.h.textarea({ class: "description" }, []);
+	        let side = typed_dom_1.h.textarea({ class: "sideeffect" }, []);
+	        let enter = typed_dom_1.h.button({}, ["変更実行"]);
+	        let cancel = typed_dom_1.h.button({}, ["キャンセル"]);
+	        let form = typed_dom_1.h.form({}, [
+	            typed_dom_1.h.table({ class: "editor" }, [
+	                typed_dom_1.h.colgroup({}, [
+	                    typed_dom_1.h.col({ class: "label" }, [])
+	                ]),
+	                typed_dom_1.h.colgroup({}, [
+	                    typed_dom_1.h.col({ class: "input" }, [])
+	                ]),
+	                typed_dom_1.h.tr({}, [
+	                    typed_dom_1.h.td({}, ["薬剤名"]),
+	                    typed_dom_1.h.td({}, [
+	                        typed_dom_1.h.div({}, [name, " ", searchButton]),
+	                        searchWrapper
+	                    ])
+	                ]),
+	                typed_dom_1.h.tr({}, [
+	                    typed_dom_1.h.td({}, ["説明"]),
+	                    typed_dom_1.h.td({}, [desc])
+	                ]),
+	                typed_dom_1.h.tr({}, [
+	                    typed_dom_1.h.td({}, ["副作用："]),
+	                    typed_dom_1.h.td({}, [side])
+	                ])
+	            ]),
+	            typed_dom_1.h.div({}, [
+	                enter, " ",
+	                cancel
+	            ])
+	        ]);
+	        let layout = {
+	            form: form,
+	            name: name,
+	            description: desc,
+	            sideeffect: side,
+	            enter: enter,
+	            cancel: cancel,
+	            searchButton: searchButton,
+	            searchWrapper: searchWrapper,
+	            search: SearchPharmaDrug.populate(searchWrapper)
+	        };
+	        typed_dom_1.appendToElement(parent, [form]);
+	        return new Controller(layout);
+	    }
+	    EditForm.populate = populate;
+	})(EditForm || (EditForm = {}));
 	var EditorWorkarea;
 	(function (EditorWorkarea) {
 	    class Controller {
@@ -321,6 +536,7 @@
 	            this.layout = layout;
 	            this.callbacks = {
 	                onEnter: (_) => { },
+	                onUpdate: (_) => { },
 	                onCancel: () => { }
 	            };
 	        }
@@ -352,7 +568,16 @@
 	        switchToEdit() {
 	            let wrapper = this.layout.wrapper;
 	            wrapper.innerHTML = "";
-	            typed_dom_1.appendToElement(wrapper, ["EDIT"]);
+	            let form = EditForm.populate(wrapper);
+	            form.callbacks.onUpdate = (iyakuhincode) => {
+	                wrapper.innerHTML = "";
+	                this.callbacks.onUpdate(iyakuhincode);
+	            };
+	            form.callbacks.onCancel = () => {
+	                wrapper.innerHTML = "";
+	                this.callbacks.onCancel();
+	            };
+	            form.appendTo(wrapper);
 	        }
 	    }
 	    EditorWorkarea.Controller = Controller;
@@ -382,6 +607,10 @@
 	            this.layout.workarea.callbacks.onEnter = (iyakuhincode) => {
 	                this.layout.menu.switchTo(null, true);
 	                this.layout.menu.switchTo("new", true);
+	            };
+	            this.layout.workarea.callbacks.onUpdate = (iyakuhincode) => {
+	                this.layout.menu.switchTo(null, true);
+	                this.layout.menu.switchTo("edit", true);
 	            };
 	            this.layout.workarea.callbacks.onCancel = () => {
 	                this.layout.menu.switchTo(null, false);
@@ -566,6 +795,9 @@
 	const pharma_drug_1 = __webpack_require__(6);
 	let numberArrayConverter = request_1.arrayConverter(request_1.convertToNumber);
 	let iyakuhinMasterArrayConverter = request_1.arrayConverter(iyakuhin_master_1.jsonToIyakuhinMaster);
+	function convertToBoolean(src) {
+	    return src ? true : false;
+	}
 	function searchIyakuhincodes(text) {
 	    return __awaiter(this, void 0, void 0, function* () {
 	        return request_1.request("/service?_q=search_most_recent_iyakuhin_master", { text: text }, "GET", numberArrayConverter);
@@ -602,12 +834,51 @@
 	    });
 	}
 	exports.enterPharmaDrug = enterPharmaDrug;
+	function updatePharmaDrug(pharmaDrug) {
+	    return __awaiter(this, void 0, void 0, function* () {
+	        return request_1.request("/service?_q=update_pharma_drug", {
+	            iyakuhincode: pharmaDrug.iyakuhincode,
+	            description: pharmaDrug.description,
+	            sideeffect: pharmaDrug.sideEffect
+	        }, "POST", convertToBoolean);
+	    });
+	}
+	exports.updatePharmaDrug = updatePharmaDrug;
 	function getPharmaDrug(iyakuhincode) {
 	    return __awaiter(this, void 0, void 0, function* () {
 	        return request_1.request("/service?_q=get_pharma_drug", { iyakuhincode: iyakuhincode }, "GET", pharma_drug_1.jsonToPharmaDrug);
 	    });
 	}
 	exports.getPharmaDrug = getPharmaDrug;
+	function getPharmaDrugEx(iyakuhincode) {
+	    return __awaiter(this, void 0, void 0, function* () {
+	        let drug = yield getPharmaDrug(iyakuhincode);
+	        let master = yield getMostRecentIyakuhinMaster(iyakuhincode);
+	        return {
+	            drug,
+	            master
+	        };
+	    });
+	}
+	exports.getPharmaDrugEx = getPharmaDrugEx;
+	function searchPharmaDrug(text) {
+	    return __awaiter(this, void 0, void 0, function* () {
+	        let iyakuhincodes = yield request_1.request("/service?_q=search_pharma_drug", { text: text }, "GET", numberArrayConverter);
+	        let drugs = yield Promise.all(iyakuhincodes.map(code => {
+	            return getPharmaDrug(code);
+	        }));
+	        let masters = yield batchGetMostRecentIyakuhinMaster(iyakuhincodes);
+	        let list = [];
+	        for (let i = 0; i < iyakuhincodes.length; i++) {
+	            list.push({
+	                drug: drugs[i],
+	                master: masters[i]
+	            });
+	        }
+	        return list;
+	    });
+	}
+	exports.searchPharmaDrug = searchPharmaDrug;
 
 
 /***/ },
